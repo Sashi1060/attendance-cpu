@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Attendance</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">Shared cloud attendance</p>
+      <h1>Student Attendance</h1>
+    </div>
+    <p class="header-note">Records are stored in a shared database and available across devices.</p>
+  </header>
+
+  <main class="app-shell">
+    <section class="panel registration-panel" aria-labelledby="registration-title">
+      <div class="section-heading">
+        <p class="eyebrow">New students</p>
+        <h2 id="registration-title">Student Registration</h2>
+      </div>
+
+      <form id="registrationForm" novalidate>
+        <label for="studentName">Student Name</label>
+        <input id="studentName" name="studentName" type="text" autocomplete="name" required>
+
+        <label for="kid">KID</label>
+        <input id="kid" name="kid" type="text" autocomplete="off" required>
+
+        <label for="email">Student Email</label>
+        <input id="email" name="email" type="email" autocomplete="email" required>
+
+        <label for="mobileNumber">Mobile Number</label>
+        <input id="mobileNumber" name="mobileNumber" type="tel" autocomplete="tel" required>
+
+        <button type="submit" class="primary-button">Register</button>
+      </form>
+      <div id="registrationMessage" class="message" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="panel checkin-panel" aria-labelledby="checkin-title">
+      <div class="section-heading">
+        <p class="eyebrow">Returning students</p>
+        <h2 id="checkin-title">Check In</h2>
+      </div>
+
+      <form id="checkInForm" novalidate>
+        <label for="checkInKid">Enter KID</label>
+        <div class="inline-form">
+          <input id="checkInKid" name="checkInKid" type="text" autocomplete="off" required>
+          <button type="submit" class="accent-button">Check In</button>
+        </div>
+      </form>
+      <div id="checkInMessage" class="message" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="dashboard" aria-labelledby="dashboard-title">
+      <div class="dashboard-top">
+        <div>
+          <p class="eyebrow">Administrator</p>
+          <h2 id="dashboard-title">Attendance Dashboard</h2>
+        </div>
+        <div class="dashboard-actions">
+          <button id="exportCsvButton" type="button" class="primary-button">Export Attendance CSV</button>
+          <button id="clearDataButton" type="button" class="danger-button">Clear All Data</button>
+        </div>
+      </div>
+
+      <p class="storage-warning">
+        This dashboard has no login. Anyone with this page's URL can view, export, or delete attendance
+        records. Do not share the URL publicly.
+      </p>
+
+      <div class="stats-grid" aria-label="Attendance summary">
+        <article class="stat">
+          <span>Total Registered</span>
+          <strong id="totalRegistered">0</strong>
+        </article>
+        <article class="stat">
+          <span>Checked In</span>
+          <strong id="checkedInCount">0</strong>
+        </article>
+        <article class="stat">
+          <span>Not Checked In</span>
+          <strong id="notCheckedInCount">0</strong>
+        </article>
+      </div>
+
+      <div class="table-tools">
+        <label for="searchInput">Search students</label>
+        <input id="searchInput" type="search" placeholder="Search by name, KID, email, or mobile">
+      </div>
+
+      <div id="dashboardMessage" class="message" role="status" aria-live="polite"></div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Student Name</th>
+              <th>KID</th>
+              <th>Student Email</th>
+              <th>Mobile Number</th>
+              <th>Registration Time</th>
+              <th>Check-In Time</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="attendanceTableBody">
+            <tr>
+              <td colspan="7" class="empty-state">Loading students...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
