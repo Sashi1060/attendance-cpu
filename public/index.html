@@ -38,22 +38,42 @@
         <button type="submit" class="primary-button">Register</button>
       </form>
       <div id="registrationMessage" class="message" role="status" aria-live="polite"></div>
+      <div id="qrResult" class="qr-result" hidden>
+        <p>Save or screenshot this QR code — scan it next time to sign in or sign out.</p>
+        <img id="qrImage" alt="QR code for your KID" width="200" height="200">
+      </div>
     </section>
 
-    <section class="panel checkin-panel" aria-labelledby="checkin-title">
+    <section class="panel checkin-panel" aria-labelledby="signin-title">
       <div class="section-heading">
         <p class="eyebrow">Returning students</p>
-        <h2 id="checkin-title">Check In</h2>
+        <h2 id="signin-title">Sign In</h2>
       </div>
 
-      <form id="checkInForm" novalidate>
-        <label for="checkInKid">Enter KID</label>
+      <form id="signInForm" novalidate>
+        <label for="signInKid">Enter KID</label>
         <div class="inline-form">
-          <input id="checkInKid" name="checkInKid" type="text" autocomplete="off" required>
-          <button type="submit" class="accent-button">Check In</button>
+          <input id="signInKid" name="signInKid" type="text" autocomplete="off" required>
+          <button type="submit" class="accent-button">Sign In</button>
         </div>
       </form>
-      <div id="checkInMessage" class="message" role="status" aria-live="polite"></div>
+      <div id="signInMessage" class="message" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="panel checkin-panel" aria-labelledby="signout-title">
+      <div class="section-heading">
+        <p class="eyebrow">Leaving students</p>
+        <h2 id="signout-title">Sign Out</h2>
+      </div>
+
+      <form id="signOutForm" novalidate>
+        <label for="signOutKid">Enter KID</label>
+        <div class="inline-form">
+          <input id="signOutKid" name="signOutKid" type="text" autocomplete="off" required>
+          <button type="submit" class="accent-button">Sign Out</button>
+        </div>
+      </form>
+      <div id="signOutMessage" class="message" role="status" aria-live="polite"></div>
     </section>
 
     <section class="dashboard" aria-labelledby="dashboard-title">
@@ -62,58 +82,71 @@
           <p class="eyebrow">Administrator</p>
           <h2 id="dashboard-title">Attendance Dashboard</h2>
         </div>
-        <div class="dashboard-actions">
+        <div id="dashboardActions" class="dashboard-actions" hidden>
           <button id="exportCsvButton" type="button" class="primary-button">Export Attendance CSV</button>
           <button id="clearDataButton" type="button" class="danger-button">Clear All Data</button>
+          <button id="adminLockButton" type="button" class="danger-button">Lock</button>
         </div>
       </div>
 
-      <p class="storage-warning">
-        This dashboard has no login. Anyone with this page's URL can view, export, or delete attendance
-        records. Do not share the URL publicly.
-      </p>
-
-      <div class="stats-grid" aria-label="Attendance summary">
-        <article class="stat">
-          <span>Total Registered</span>
-          <strong id="totalRegistered">0</strong>
-        </article>
-        <article class="stat">
-          <span>Checked In</span>
-          <strong id="checkedInCount">0</strong>
-        </article>
-        <article class="stat">
-          <span>Not Checked In</span>
-          <strong id="notCheckedInCount">0</strong>
-        </article>
+      <div id="adminGate" class="admin-gate">
+        <label for="adminKeyInput">Admin Key</label>
+        <div class="inline-form">
+          <input id="adminKeyInput" name="adminKeyInput" type="password" autocomplete="off" placeholder="Enter admin key">
+          <button id="adminUnlockButton" type="button" class="primary-button">Unlock Dashboard</button>
+        </div>
+        <div id="adminGateMessage" class="message" role="status" aria-live="polite"></div>
       </div>
 
-      <div class="table-tools">
-        <label for="searchInput">Search students</label>
-        <input id="searchInput" type="search" placeholder="Search by name, KID, email, or mobile">
-      </div>
+      <div id="adminPanel" hidden>
+        <p class="storage-warning">
+          This dashboard shows every registered student's name, email, and mobile number. Keep your admin
+          key private — anyone who has it can view, export, or delete attendance records.
+        </p>
 
-      <div id="dashboardMessage" class="message" role="status" aria-live="polite"></div>
+        <div class="stats-grid" aria-label="Attendance summary">
+          <article class="stat">
+            <span>Total Registered</span>
+            <strong id="totalRegistered">0</strong>
+          </article>
+          <article class="stat">
+            <span>Signed In</span>
+            <strong id="signedInCount">0</strong>
+          </article>
+          <article class="stat">
+            <span>Signed Out</span>
+            <strong id="signedOutCount">0</strong>
+          </article>
+        </div>
 
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Student Name</th>
-              <th>KID</th>
-              <th>Student Email</th>
-              <th>Mobile Number</th>
-              <th>Registration Time</th>
-              <th>Check-In Time</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="attendanceTableBody">
-            <tr>
-              <td colspan="7" class="empty-state">Loading students...</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="table-tools">
+          <label for="searchInput">Search students</label>
+          <input id="searchInput" type="search" placeholder="Search by name, KID, email, or mobile">
+        </div>
+
+        <div id="dashboardMessage" class="message" role="status" aria-live="polite"></div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Student Name</th>
+                <th>KID</th>
+                <th>Student Email</th>
+                <th>Mobile Number</th>
+                <th>Registration Time</th>
+                <th>Sign-In Time</th>
+                <th>Sign-Out Time</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="attendanceTableBody">
+              <tr>
+                <td colspan="8" class="empty-state">No students registered yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
   </main>

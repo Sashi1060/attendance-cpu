@@ -9,6 +9,7 @@ const mongoSanitize = require("express-mongo-sanitize");
 const mongoose = require("mongoose");
 
 const studentRoutes = require("./routes/students");
+const adminRoutes = require("./routes/admin");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -66,6 +67,7 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/students", studentRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: "Not found." });
@@ -87,6 +89,10 @@ app.use((err, req, res, next) => {
 if (!MONGO_URI) {
   console.error("MONGO_URI is not set. Configure it in your environment variables before starting the server.");
   process.exit(1);
+}
+
+if (!process.env.ADMIN_KEY) {
+  console.warn("ADMIN_KEY is not set. Admin routes (roster, delete, clear-all) will return 500 until it is configured.");
 }
 
 mongoose.connection.on("error", (err) => {

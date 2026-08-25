@@ -1,20 +1,34 @@
 const API_BASE = "/api/students";
+const ADMIN_VERIFY_URL = "/api/admin/verify";
+const ADMIN_KEY_STORAGE = "attendanceAdminKey";
 
 const registrationForm = document.querySelector("#registrationForm");
-const checkInForm = document.querySelector("#checkInForm");
+const signInForm = document.querySelector("#signInForm");
+const signOutForm = document.querySelector("#signOutForm");
 const searchInput = document.querySelector("#searchInput");
 const attendanceTableBody = document.querySelector("#attendanceTableBody");
 const registrationMessage = document.querySelector("#registrationMessage");
-const checkInMessage = document.querySelector("#checkInMessage");
+const signInMessage = document.querySelector("#signInMessage");
+const signOutMessage = document.querySelector("#signOutMessage");
 const dashboardMessage = document.querySelector("#dashboardMessage");
+const dashboardActions = document.querySelector("#dashboardActions");
 const exportCsvButton = document.querySelector("#exportCsvButton");
 const clearDataButton = document.querySelector("#clearDataButton");
+const adminLockButton = document.querySelector("#adminLockButton");
+const adminGate = document.querySelector("#adminGate");
+const adminGateMessage = document.querySelector("#adminGateMessage");
+const adminKeyInput = document.querySelector("#adminKeyInput");
+const adminUnlockButton = document.querySelector("#adminUnlockButton");
+const adminPanel = document.querySelector("#adminPanel");
+const qrResult = document.querySelector("#qrResult");
+const qrImage = document.querySelector("#qrImage");
 
 const totalRegistered = document.querySelector("#totalRegistered");
-const checkedInCount = document.querySelector("#checkedInCount");
-const notCheckedInCount = document.querySelector("#notCheckedInCount");
+const signedInCount = document.querySelector("#signedInCount");
+const signedOutCount = document.querySelector("#signedOutCount");
 
 let students = [];
+let adminKey = sessionStorage.getItem(ADMIN_KEY_STORAGE) || "";
 
 function normalizeKid(kid) {
   return kid.trim().toUpperCase();
@@ -22,7 +36,7 @@ function normalizeKid(kid) {
 
 function formatDisplayDateTime(value) {
   if (!value) {
-    return "Not Checked In";
+    return "—";
   }
 
   const date = new Date(value);
@@ -41,7 +55,7 @@ function formatDisplayDateTime(value) {
 
 function formatCsvDateTime(value) {
   if (!value) {
-    return "Not Checked In";
+    return "";
   }
 
   const date = new Date(value);
@@ -85,7 +99,7 @@ async function withDisabled(buttons, fn) {
   }
 }
 
-async function apiRequest(url, options) {
+async function apiRequest(url, options = {}) {
   let response;
 
   try {
@@ -108,16 +122,11 @@ async function apiRequest(url, options) {
   return data;
 }
 
-async function loadStudents() {
-  try {
-    students = await apiRequest(API_BASE, { method: "GET" });
-  } catch (error) {
-    students = [];
-    showMessage(dashboardMessage, error.message, "error");
-  }
-
-  renderDashboard();
+function adminHeaders() {
+  return { Authorization: `Bearer ${adminKey}` };
 }
+
+// --- Registration ---------------------------------------------------------
 
 function getRegistrationData() {
   const formData = new FormData(registrationForm);
@@ -133,6 +142,7 @@ function getRegistrationData() {
 async function registerStudent(event) {
   event.preventDefault();
   clearMessage(registrationMessage);
+  qrResult.hidden = true;
 
   const student = getRegistrationData();
   const submitButton = registrationForm.querySelector("button[type=submit]");
@@ -161,48 +171,158 @@ async function registerStudent(event) {
       });
 
       registrationForm.reset();
-      showMessage(registrationMessage, `${student.studentName} registered successfully.`, "success");
-      await loadStudents();
+      showMessage(
+        registrationMessage,
+        `${student.studentName} registered successfully. You won't need to register again — use Sign In next time.`,
+        "success"
+      );
+      qrImage.src = `${API_BASE}/${encodeURIComponent(student.kid)}/qrcode?t=${Date.now()}`;
+      qrResult.hidden = false;
+      await refreshDashboardIfUnlocked();
     } catch (error) {
       showMessage(registrationMessage, error.message, "error");
     }
   });
 }
 
-async function checkStudentIn(event) {
-  event.preventDefault();
-  clearMessage(checkInMessage);
+// --- Sign in / sign out -----------------------------------------------------
 
-  const kidInput = document.querySelector("#checkInKid");
+async function signStudentIn(event) {
+  event.preventDefault();
+  clearMessage(signInMessage);
+
+  const kidInput = document.querySelector("#signInKid");
   const kid = kidInput.value.trim();
-  const submitButton = checkInForm.querySelector("button[type=submit]");
+  const submitButton = signInForm.querySelector("button[type=submit]");
 
   if (!kid) {
-    showMessage(checkInMessage, "Please enter your KID.", "error");
+    showMessage(signInMessage, "Please enter your KID.", "error");
     return;
   }
 
   await withDisabled([submitButton], async () => {
     try {
-      const result = await apiRequest(`${API_BASE}/${encodeURIComponent(normalizeKid(kid))}/check-in`, {
+      const result = await apiRequest(`${API_BASE}/${encodeURIComponent(normalizeKid(kid))}/sign-in`, {
         method: "POST"
       });
 
-      checkInForm.reset();
-      showMessage(checkInMessage, result.message, result.alreadyCheckedIn ? "info" : "success");
-      await loadStudents();
+      signInForm.reset();
+      showMessage(signInMessage, result.message, result.alreadySignedIn ? "info" : "success");
+      await refreshDashboardIfUnlocked();
     } catch (error) {
-      showMessage(checkInMessage, error.message, "error");
+      showMessage(signInMessage, error.message, "error");
     }
   });
 }
 
+async function signStudentOut(event) {
+  event.preventDefault();
+  clearMessage(signOutMessage);
+
+  const kidInput = document.querySelector("#signOutKid");
+  const kid = kidInput.value.trim();
+  const submitButton = signOutForm.querySelector("button[type=submit]");
+
+  if (!kid) {
+    showMessage(signOutMessage, "Please enter your KID.", "error");
+    return;
+  }
+
+  await withDisabled([submitButton], async () => {
+    try {
+      const result = await apiRequest(`${API_BASE}/${encodeURIComponent(normalizeKid(kid))}/sign-out`, {
+        method: "POST"
+      });
+
+      signOutForm.reset();
+      showMessage(signOutMessage, result.message, result.alreadySignedOut ? "info" : "success");
+      await refreshDashboardIfUnlocked();
+    } catch (error) {
+      showMessage(signOutMessage, error.message, "error");
+    }
+  });
+}
+
+// --- Admin gate --------------------------------------------------------------
+
+function lockAdminPanel() {
+  adminKey = "";
+  sessionStorage.removeItem(ADMIN_KEY_STORAGE);
+  students = [];
+  adminGate.hidden = false;
+  adminPanel.hidden = true;
+  dashboardActions.hidden = true;
+  adminKeyInput.value = "";
+}
+
+function unlockAdminPanel() {
+  adminGate.hidden = true;
+  adminPanel.hidden = false;
+  dashboardActions.hidden = false;
+}
+
+async function verifyAndUnlock(key) {
+  await apiRequest(ADMIN_VERIFY_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key })
+  });
+
+  adminKey = key;
+  sessionStorage.setItem(ADMIN_KEY_STORAGE, key);
+  unlockAdminPanel();
+  await loadStudents();
+}
+
+async function handleAdminUnlock() {
+  clearMessage(adminGateMessage);
+  const key = adminKeyInput.value.trim();
+
+  if (!key) {
+    showMessage(adminGateMessage, "Please enter the admin key.", "error");
+    return;
+  }
+
+  await withDisabled([adminUnlockButton], async () => {
+    try {
+      await verifyAndUnlock(key);
+    } catch (error) {
+      showMessage(adminGateMessage, error.message, "error");
+    }
+  });
+}
+
+async function refreshDashboardIfUnlocked() {
+  if (adminKey) {
+    await loadStudents();
+  }
+}
+
+// --- Dashboard -----------------------------------------------------------
+
+async function loadStudents() {
+  try {
+    students = await apiRequest(API_BASE, { method: "GET", headers: adminHeaders() });
+  } catch (error) {
+    if (error.message.includes("Admin authentication")) {
+      lockAdminPanel();
+      showMessage(adminGateMessage, "Your admin session expired. Please enter the key again.", "error");
+      return;
+    }
+    students = [];
+    showMessage(dashboardMessage, error.message, "error");
+  }
+
+  renderDashboard();
+}
+
 function updateStatistics(list) {
-  const checkedIn = list.filter((student) => student.checkIn).length;
+  const signedIn = list.filter((student) => student.signInAt).length;
+  const signedOut = list.filter((student) => student.signOutAt).length;
 
   totalRegistered.textContent = list.length;
-  checkedInCount.textContent = checkedIn;
-  notCheckedInCount.textContent = list.length - checkedIn;
+  signedInCount.textContent = signedIn;
+  signedOutCount.textContent = signedOut;
 }
 
 function getFilteredStudents(list) {
@@ -225,7 +345,7 @@ function renderTable(list) {
   if (filteredStudents.length === 0) {
     attendanceTableBody.innerHTML = `
       <tr>
-        <td colspan="7" class="empty-state">
+        <td colspan="8" class="empty-state">
           ${list.length === 0 ? "No students registered yet." : "No matching students found."}
         </td>
       </tr>
@@ -242,7 +362,8 @@ function renderTable(list) {
       <td>${escapeHtml(student.email)}</td>
       <td>${escapeHtml(student.mobileNumber)}</td>
       <td>${escapeHtml(formatDisplayDateTime(student.registeredAt))}</td>
-      <td class="${student.checkIn ? "" : "not-checked"}">${escapeHtml(formatDisplayDateTime(student.checkIn))}</td>
+      <td class="${student.signInAt ? "" : "not-checked"}">${escapeHtml(formatDisplayDateTime(student.signInAt))}</td>
+      <td class="${student.signOutAt ? "" : "not-checked"}">${escapeHtml(formatDisplayDateTime(student.signOutAt))}</td>
       <td>
         <button class="delete-button" type="button" data-kid="${escapeHtml(student.kid)}">Delete</button>
       </td>
@@ -283,7 +404,15 @@ function exportCsv() {
     return;
   }
 
-  const headers = ["Student Name", "KID", "Student Email", "Mobile Number", "Registration Time", "Check-In Time"];
+  const headers = [
+    "Student Name",
+    "KID",
+    "Student Email",
+    "Mobile Number",
+    "Registration Time",
+    "Sign-In Time",
+    "Sign-Out Time"
+  ];
 
   const rows = students.map((student) => [
     student.studentName,
@@ -291,7 +420,8 @@ function exportCsv() {
     student.email,
     student.mobileNumber,
     formatCsvDateTime(student.registeredAt),
-    formatCsvDateTime(student.checkIn)
+    formatCsvDateTime(student.signInAt),
+    formatCsvDateTime(student.signOutAt)
   ]);
 
   const csv = [headers, ...rows].map((row) => row.map(escapeCsvValue).join(",")).join("\n");
@@ -319,7 +449,7 @@ async function clearAllData() {
 
   await withDisabled([clearDataButton], async () => {
     try {
-      await apiRequest(API_BASE, { method: "DELETE" });
+      await apiRequest(API_BASE, { method: "DELETE", headers: adminHeaders() });
       searchInput.value = "";
       showMessage(dashboardMessage, "All attendance data has been cleared.", "success");
       await loadStudents();
@@ -339,7 +469,10 @@ async function deleteStudent(kid, button) {
 
   await withDisabled([button], async () => {
     try {
-      await apiRequest(`${API_BASE}/${encodeURIComponent(normalizeKid(kid))}`, { method: "DELETE" });
+      await apiRequest(`${API_BASE}/${encodeURIComponent(normalizeKid(kid))}`, {
+        method: "DELETE",
+        headers: adminHeaders()
+      });
       showMessage(dashboardMessage, `${student ? student.studentName : "Student"}'s record was deleted.`, "success");
       await loadStudents();
     } catch (error) {
@@ -349,10 +482,19 @@ async function deleteStudent(kid, button) {
 }
 
 registrationForm.addEventListener("submit", registerStudent);
-checkInForm.addEventListener("submit", checkStudentIn);
+signInForm.addEventListener("submit", signStudentIn);
+signOutForm.addEventListener("submit", signStudentOut);
 searchInput.addEventListener("input", renderDashboard);
 exportCsvButton.addEventListener("click", exportCsv);
 clearDataButton.addEventListener("click", clearAllData);
+adminUnlockButton.addEventListener("click", handleAdminUnlock);
+adminLockButton.addEventListener("click", lockAdminPanel);
+adminKeyInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    handleAdminUnlock();
+  }
+});
 attendanceTableBody.addEventListener("click", (event) => {
   const deleteButton = event.target.closest(".delete-button");
 
@@ -361,4 +503,8 @@ attendanceTableBody.addEventListener("click", (event) => {
   }
 });
 
-loadStudents();
+if (adminKey) {
+  verifyAndUnlock(adminKey).catch(() => {
+    lockAdminPanel();
+  });
+}

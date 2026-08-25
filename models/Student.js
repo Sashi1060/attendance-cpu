@@ -33,7 +33,11 @@ const studentSchema = new mongoose.Schema(
       type: Date,
       default: Date.now
     },
-    checkIn: {
+    signInAt: {
+      type: Date,
+      default: null
+    },
+    signOutAt: {
       type: Date,
       default: null
     }

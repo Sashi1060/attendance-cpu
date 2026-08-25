@@ -4,3 +4,5 @@ node_modules/
 npm-debug.log*
 .DS_Store
 *.log
+CODEX_PROMPT.md
+CODEX_UI_PROMPT.md
