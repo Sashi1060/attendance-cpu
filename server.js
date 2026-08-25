@@ -19,7 +19,7 @@ const MONGO_URI = process.env.MONGO_URI;
 // Railway/other PaaS run behind a reverse proxy; needed for correct client IPs in rate limiting.
 app.set("trust proxy", 1);
 
-app.use(helmet());
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 
 const devOrigins = [
   "http://localhost:3000",
